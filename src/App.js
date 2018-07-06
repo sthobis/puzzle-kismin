@@ -10,13 +10,19 @@ function shuffleArray(array) {
   return shuffled
 }
 
+const CONSTANT = {
+  PIECES: "PIECES",
+  SOLUTION: "SOLUTION",
+  EMPTY: -1
+}
+
 class App extends Component {
   state = {
     imageSrc: "https://pamcarter.co.uk/files/cache/88090ad09668e0147f50a9da6178c2d7_f389.jpg",
     rows: 3,
     columns: 4,
-    pieces: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    solution: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    pieces: [],
+    solution: [],
     puzzleWidth: 0
   }
 
@@ -55,25 +61,88 @@ class App extends Component {
   createPuzzle = () => {
     const { rows, columns } = this.state
     const pieces = shuffleArray(Array(rows * columns).fill(0).map((value, index) => index))
-    this.setState({ pieces })
+    const solution = Array(rows * columns).fill(CONSTANT.EMPTY)
+    this.setState({ pieces, solution })
   }
 
-  onPieceDragStart = index => {
-    return e => {
-      const { rows, columns, puzzleWidth } = this.state
-      const canvas = this.canvas
-      canvas.width = puzzleWidth / columns
-      canvas.height = puzzleWidth / rows
+  onDragStart = (index, source) => e => {
+    const { rows, columns, puzzleWidth } = this.state
+    const canvas = this.canvas
+    canvas.width = puzzleWidth / columns
+    canvas.height = puzzleWidth / rows
 
-      const ctx = canvas.getContext("2d")
-      const background = this.canvasAssets[0]
-      const dx = -canvas.width * (index % columns)
-      const dy = -canvas.height * (Math.floor(index / columns))
-      ctx.drawImage(background, dx, dy, puzzleWidth, puzzleWidth)
+    const ctx = canvas.getContext("2d")
+    const background = this.canvasAssets[0]
+    const dx = -canvas.width * (index % columns)
+    const dy = -canvas.height * (Math.floor(index / columns))
+    ctx.drawImage(background, dx, dy, puzzleWidth, puzzleWidth)
 
-      e.dataTransfer.setData("text/plain", index)
-      e.dataTransfer.setDragImage(canvas, canvas.width / 2, canvas.height / 2)
-    }
+    e.dataTransfer.setData("pieceId", index)
+    e.dataTransfer.setData("source", source)
+    e.dataTransfer.setDragImage(canvas, canvas.width / 2, canvas.height / 2)
+  }
+
+  onDragOver = e => {
+    e.preventDefault()
+  }
+
+  onDrop = (dropIndex, destination) => e => {
+    e.preventDefault()
+    const pieceId = parseInt(e.dataTransfer.getData("pieceId"), 10)
+    const source = e.dataTransfer.getData("source")
+
+    console.log(source, destination, pieceId, dropIndex)
+
+    this.setState(prevState => {
+      let pieces = prevState.pieces.slice()
+      let solution = prevState.solution.slice()
+      if (source === CONSTANT.PIECES) {
+        if (destination === CONSTANT.PIECES) {
+          if (pieces[dropIndex]) {
+            // pieces to pieces && occupied => swap
+            pieces[pieces.indexOf(pieceId)] = pieces[dropIndex]
+            pieces[dropIndex] = pieceId
+          } else {
+            // pieces to pieces && unoccupied => move
+            pieces[pieces.indexOf(pieceId)] = 0
+            pieces[dropIndex] = pieceId
+          }
+        } else if (destination === CONSTANT.SOLUTION) {
+          if (solution[dropIndex]) {
+            // pieces to solution && occupied => swap
+            pieces[pieces.indexOf(pieceId)] = solution[dropIndex]
+            solution[dropIndex] = pieceId
+          } else {
+            // pieces to solution && unoccupied => move
+            pieces[pieces.indexOf(pieceId)] = 0
+            solution[dropIndex] = pieceId
+          }
+        }
+      } else if (source === CONSTANT.SOLUTION) {
+        if (destination === CONSTANT.PIECES) {
+          if (pieces[dropIndex]) {
+            // solution to pieces && occupied => swap
+            solution[solution.indexOf(pieceId)] = pieces[dropIndex]
+            pieces[dropIndex] = pieceId
+          } else {
+            // solution to pieces && unoccupied => move
+            solution[solution.indexOf(pieceId)] = 0
+            pieces[dropIndex] = pieceId
+          }
+        } else if (destination === CONSTANT.SOLUTION) {
+          if (solution[dropIndex]) {
+            // solution to solution && occupied => swap
+            solution[solution.indexOf(pieceId)] = solution[dropIndex]
+            solution[dropIndex] = pieceId
+          } else {
+            // solution to solution && unoccupied => move
+            solution[solution.indexOf(pieceId)] = 0
+            solution[dropIndex] = pieceId
+          }
+        }
+      }
+      return { pieces, solution }
+    })
   }
 
   render() {
@@ -143,33 +212,45 @@ class App extends Component {
                 position: "absolute",
                 left: 0,
                 top: 0,
-                border: "1px solid rgba(0, 0, 0, 0.75)"
+                border: "1px dashed rgba(0, 0, 0, 0.75)"
               }}
             >
               {
                 pieces.map((pieceId, index) => (
                   <div
                     key={index}
-                    draggable={true}
-                    onDragStart={this.onPieceDragStart(index)}
                     style={{
-                      borderRight: (index + 1) % columns === 0 ? undefined : "1px solid rgba(0, 0, 0, 0.75)",
-                      borderBottom: index + 1 > (rows - 1) * columns ? undefined : "1px solid rgba(0, 0, 0, 0.75)",
-                      position: "relative",
-                      overflow: "hidden"
+                      borderRight: (index + 1) % columns === 0 ? undefined : "1px dashed rgba(0, 0, 0, 0.75)",
+                      borderBottom: index + 1 > (rows - 1) * columns ? undefined : "1px dashed rgba(0, 0, 0, 0.75)"
                     }}
+                    onDragOver={this.onDragOver}
+                    onDrop={this.onDrop(index, CONSTANT.PIECES)}
                   >
-                    <img
-                      src={imageSrc}
-                      alt="puzzle-piece"
-                      style={{
-                        position: "absolute",
-                        top: `${Math.floor(pieceId / columns) * -100}%` ,
-                        left: `${(pieceId % columns) * -100}%`,
-                        width: `${puzzleWidth}px`,
-                        height: `${puzzleWidth}px`
-                      }}
-                    />
+                    {
+                      pieceId !== CONSTANT.EMPTY &&
+                      <div
+                        draggable={true}
+                        onDragStart={this.onDragStart(pieceId, CONSTANT.PIECES)}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          position: "relative",
+                          overflow: "hidden"
+                        }}
+                      >
+                        <img
+                          src={imageSrc}
+                          alt="puzzle-piece"
+                          style={{
+                            position: "absolute",
+                            top: `${Math.floor(pieceId / columns) * -100}%` ,
+                            left: `${(pieceId % columns) * -100}%`,
+                            width: `${puzzleWidth}px`,
+                            height: `${puzzleWidth}px`
+                          }}
+                        />
+                      </div>
+                    }
                   </div>
                 ))
               }
@@ -205,15 +286,41 @@ class App extends Component {
               }}
             >
               {
-                solution.map((piece, index) => (
+                solution.map((pieceId, index) => (
                   <div
                     key={index}
                     style={{
                       borderRight: (index + 1) % columns === 0 ? undefined : "1px dashed rgba(0, 0, 0, 0.75)",
                       borderBottom: index + 1 > (rows - 1) * columns ? undefined : "1px dashed rgba(0, 0, 0, 0.75)"
                     }}
+                    onDragOver={this.onDragOver}
+                    onDrop={this.onDrop(index, CONSTANT.SOLUTION)}
                   >
-                    
+                    {
+                      pieceId !== CONSTANT.EMPTY &&
+                      <div
+                        draggable={true}
+                        onDragStart={this.onDragStart(pieceId, CONSTANT.SOLUTION)}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          position: "relative",
+                          overflow: "hidden"
+                        }}
+                      >
+                        <img
+                          src={imageSrc}
+                          alt="puzzle-piece"
+                          style={{
+                            position: "absolute",
+                            top: `${Math.floor(pieceId / columns) * -100}%` ,
+                            left: `${(pieceId % columns) * -100}%`,
+                            width: `${puzzleWidth}px`,
+                            height: `${puzzleWidth}px`
+                          }}
+                        />
+                      </div>
+                    }
                   </div>
                 ))
               }
