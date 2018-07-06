@@ -178,6 +178,30 @@ class App extends Component {
         >
           <div>
             <input
+              type="number"
+              value={rows}
+              onChange={(e) => {
+                this.setState({ rows: parseInt(e.target.value, 10) }, () => {
+                  this.createPuzzle()
+                })
+              }}
+              style={{
+                width: 50
+              }}
+            />
+            <input
+              type="number"
+              value={columns}
+              onChange={(e) => {
+                this.setState({ columns: parseInt(e.target.value, 10) }, () => {
+                  this.createPuzzle()
+                })
+              }}
+              style={{
+                width: 50
+              }}
+            />
+            <input
               type="text"
               value={inputText}
               onChange={(e) => {
