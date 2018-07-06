@@ -23,6 +23,7 @@ class App extends Component {
     columns: 4,
     pieces: [],
     solution: [],
+    correctAnswer: "antikismin",
     puzzleWidth: 0
   }
 
@@ -62,7 +63,10 @@ class App extends Component {
     const { rows, columns } = this.state
     const pieces = shuffleArray(Array(rows * columns).fill(0).map((value, index) => index))
     const solution = Array(rows * columns).fill(CONSTANT.EMPTY)
-    this.setState({ pieces, solution })
+    let correctAnswer = pieces.slice()
+    correctAnswer.sort((a, b) => a - b)
+    correctAnswer = correctAnswer.toString()
+    this.setState({ pieces, solution, correctAnswer })
   }
 
   onDragStart = (index, source) => e => {
@@ -90,8 +94,6 @@ class App extends Component {
     e.preventDefault()
     const pieceId = parseInt(e.dataTransfer.getData("pieceId"), 10)
     const source = e.dataTransfer.getData("source")
-
-    console.log(source, destination, pieceId, dropIndex)
 
     this.setState(prevState => {
       let pieces = prevState.pieces.slice()
@@ -146,7 +148,8 @@ class App extends Component {
   }
 
   render() {
-    const { imageSrc, rows, columns, pieces, solution, puzzleWidth } = this.state
+    const { imageSrc, rows, columns, pieces, solution, correctAnswer, puzzleWidth } = this.state
+    const solved = solution.toString() === correctAnswer
 
     return (
       <div
@@ -260,11 +263,13 @@ class App extends Component {
         <main
           style={{
             display: "flex",
+            flexDirection: "column",
             justifyContent: "center",
             alignItems: "center",
             background: "aliceblue"
           }}
         >
+          <p>{solved ? "SOLVED!" : "UNSOLVED"}</p>
           <div
             style={{
               width: "50%",
